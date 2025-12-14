@@ -1,944 +1,688 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Редактор — Pair (Matching)</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Редактор — Pair (канат)</title>
 
   <style>
     :root{
-      --acc:#ffd700;
-      --acc2:#00f0ff;
-      --bg: rgba(10,10,12,.10); /* прозрачный фон для работы на слайде */
-      --panel: rgba(15,15,20,.88);
-      --panel2: rgba(18,18,24,.88);
-      --stroke: rgba(255,255,255,.14);
-      --ink:#fff;
-      --muted: rgba(255,255,255,.72);
+      --bg:#0b0b0d; --card:#121215; --ink:#f1f1f1; --muted:#b8b8b8;
+      --stroke:#26262a; --acc:#ffd700; --acc2:#ffbf00;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
       --radius:16px;
-      --shadow: 0 10px 26px rgba(0,0,0,.35);
-      --shadow2: 0 0 22px rgba(255,215,0,.12);
     }
-
     *{box-sizing:border-box}
     html,body{height:100%}
     body{
       margin:0;
-      background: transparent;
-      overflow:hidden;
-      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:
+        radial-gradient(1200px 600px at 20% -10%, rgba(255,215,0,.10), transparent 60%),
+        radial-gradient(900px 500px at 80% 0%, rgba(0,240,255,.06), transparent 55%),
+        var(--bg);
       color:var(--ink);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
     }
-
-    /* слой калибровки */
-    #stage{
-      position:absolute; inset:0;
-      background: var(--bg);
-    }
-
-    /* Панель редактора */
-    #panel{
-      position:absolute;
-      top:14px; left:14px;
-      width:min(420px, calc(100vw - 28px));
-      max-height: calc(100vh - 28px);
-      overflow:auto;
-      padding:14px;
-      border-radius: var(--radius);
-      background: linear-gradient(180deg, var(--panel), var(--panel2));
-      border:1px solid var(--stroke);
-      box-shadow: var(--shadow), var(--shadow2);
+    header{
+      position:sticky; top:0; z-index:5;
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px;
+      padding:14px 18px;
+      border-bottom:1px solid var(--stroke);
+      background: rgba(11,11,13,.88);
       backdrop-filter: blur(10px);
-      z-index: 50;
     }
-
-    #panel.drag-hide{opacity:0; pointer-events:none; transition:opacity .08s ease}
-    #panel h1{
-      margin:0 0 8px;
-      font-size:16px;
-      font-weight:900;
-      color: var(--acc);
-      display:flex;
-      gap:10px;
-      align-items:center;
+    header h1{
+      margin:0; font-size:18px; font-weight:900;
+      color:var(--acc); display:flex; align-items:center; gap:10px;
     }
     .pill{
-      font-size:12px;
-      padding:5px 10px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
+      font-size:12px; padding:6px 10px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
       color: rgba(255,255,255,.85);
       white-space:nowrap;
     }
 
+    main{
+      display:grid;
+      grid-template-columns: 520px 1fr;
+      gap:22px;
+      padding:18px;
+      max-width:1560px;
+      margin:0 auto;
+      align-items:start;
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border:1px solid var(--stroke);
+      border-radius: var(--radius);
+      padding:16px;
+      box-shadow: 0 0 30px rgba(255,215,0,.08);
+    }
+    .card h2{margin:0 0 12px; font-size:16px; color:var(--acc); font-weight:900;}
     .section{
-      margin-top:12px;
-      padding:12px;
+      border:1px solid rgba(255,255,255,.06);
+      background: rgba(0,0,0,.18);
       border-radius: 14px;
-      border:1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.20);
+      padding:14px;
+      margin-top:12px;
     }
-    .section h2{
-      margin:0 0 10px;
-      font-size:13px;
-      font-weight:900;
-      color: rgba(255,255,255,.92);
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:10px;
-    }
-
-    label{display:block; margin:10px 0 6px; font-size:12.5px; font-weight:800; color:#fff}
-    input[type="text"], input[type="url"], input[type="number"], select, textarea{
+    .section:first-child{margin-top:0}
+    label{display:block; margin:10px 0 6px; font-size:14px; font-weight:800;}
+    input[type=text], input[type=url], input[type=number], textarea, select{
       width:100%;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,.16);
-      background: rgba(0,0,0,.25);
-      color:#fff;
+      background:#0f0f12; color:#fff;
+      border:1px solid rgba(255,255,255,.16);
+      border-radius:12px;
       padding:10px 12px;
-      font-size:13px;
+      font-size:14px;
       outline:none;
     }
-    textarea{min-height:86px; resize:vertical}
-    input:focus,textarea:focus,select:focus{
-      border-color: rgba(255,215,0,.55);
-      box-shadow: 0 0 0 3px rgba(255,215,0,.14);
-    }
-
-    .row{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-    .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px}
-    .hint{font-size:12px; color:var(--muted); margin-top:8px; line-height:1.35}
-
-    .btnbar{
-      display:flex; gap:10px; flex-wrap:wrap;
-      margin-top:10px;
-    }
+    textarea{min-height:74px; resize:vertical}
+    .row{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+    .hint{color:var(--muted); font-size:12px; margin-top:8px; line-height:1.45}
+    .divider{height:1px; background: rgba(255,255,255,.06); margin:14px 0}
     button{
-      border:none;
-      border-radius: 14px;
-      padding:10px 12px;
-      font-weight:900;
-      cursor:pointer;
-      background: linear-gradient(90deg, var(--acc), #ffbf00);
+      background: linear-gradient(90deg, var(--acc2), var(--acc));
       color:#0b0b0d;
-      box-shadow: 0 10px 24px rgba(255,215,0,.18);
-      font-size:13px;
+      border:none; border-radius:14px;
+      font-weight:900;
+      padding:12px 14px;
+      cursor:pointer;
+      transition:transform .12s ease, box-shadow .15s ease;
+      font-size:14px;
+      box-shadow: 0 10px 30px rgba(255,215,0,.18);
     }
-    button:hover{transform: translateY(-1px)}
-    .ghost{
+    button:hover{transform: translateY(-1px); box-shadow: 0 14px 34px rgba(255,215,0,.22)}
+    .btn-ghost{
       background: rgba(255,255,255,.06);
+      color:#fff;
       border:1px solid rgba(255,255,255,.14);
-      color:#fff;
       box-shadow:none;
     }
-    .danger{
-      background: rgba(255,77,77,.18);
-      border:1px solid rgba(255,77,77,.35);
-      color:#fff;
-      box-shadow:none;
+    .btn-mini{padding:10px 12px; border-radius:12px; font-size:13px}
+    .toolbar{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
     }
-    .mini{padding:9px 10px; border-radius:12px}
+    .k{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; opacity:.9}
+    .danger{background: rgba(255,70,70,.18); border:1px solid rgba(255,70,70,.35); color:#fff}
 
-    .seg{
-      display:flex; gap:8px; align-items:center;
+    /* preview area */
+    #stageWrap{position:relative; width:100%; aspect-ratio: 16/9; border-radius:18px; overflow:hidden;
+      border:1px solid rgba(255,255,255,.10);
+      background: radial-gradient(900px 500px at 30% 20%, rgba(255,215,0,.10), transparent 65%),
+                  radial-gradient(900px 500px at 70% 0%, rgba(0,240,255,.06), transparent 55%),
+                  rgba(0,0,0,.22);
+      box-shadow: var(--shadow);
     }
-    .seg button{
-      background: rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.14);
-      color:#fff;
-      box-shadow:none;
-      padding:9px 10px;
-      border-radius:999px;
+    #stage{
+      position:absolute; inset:0;
+      user-select:none;
+      touch-action:none;
     }
-    .seg button.active{
-      background: rgba(255,215,0,.14);
-      border-color: rgba(255,215,0,.38);
-      color:#fff;
-      box-shadow: 0 0 18px rgba(255,215,0,.12);
+    #svg{
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      pointer-events:none;
+      opacity:1;
+      transition: opacity .12s ease;
     }
-
-    /* Точки */
     .anchor{
       position:absolute;
-      width:22px; height:22px;
+      width:20px; height:20px;
       border-radius:999px;
-      transform: translate(-50%,-50%);
-      background: rgba(255,255,255,.16);
-      border:2px solid rgba(255,255,255,.60);
-      box-shadow: 0 0 18px rgba(0,240,255,.20);
-      cursor: grab;
-      user-select:none;
-      z-index: 10;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size:11px;
-      font-weight:900;
-      color:#fff;
-      text-shadow: 0 2px 8px rgba(0,0,0,.6);
-    }
-    .anchor.left{border-color: rgba(0,240,255,.85); box-shadow:0 0 18px rgba(0,240,255,.25)}
-    .anchor.right{border-color: rgba(255,215,0,.85); box-shadow:0 0 18px rgba(255,215,0,.25)}
-    .anchor.selected{outline:3px solid rgba(255,255,255,.35)}
-    .anchor.dragging{cursor: grabbing; z-index: 9999; outline: 3px solid rgba(255,255,255,.22)}
-
-    /* когда тянем — всё остальное “сворачиваем”, чтоб не мешало */
-    body.dragging .anchor:not(.dragging){
-      opacity:.12;
-      pointer-events:none;
-    }
-
-    /* Панель инструментов быстрых кнопок */
-    #quick{
-      position:absolute;
-      right:14px; top:14px;
-      display:flex; flex-direction:column; gap:10px;
-      z-index: 60;
-    }
-    #quick .qbtn{
-      width:46px; height:46px;
-      border-radius: 16px;
-      display:flex; align-items:center; justify-content:center;
-      font-size:18px;
-      font-weight:900;
+      border:2px solid rgba(255,255,255,.55);
       background: rgba(0,0,0,.35);
-      border:1px solid rgba(255,255,255,.14);
-      box-shadow: var(--shadow);
-      color:#fff;
-      cursor:pointer;
-      user-select:none;
+      box-shadow: 0 0 14px rgba(255,215,0,.25);
+      transform: translate(-50%,-50%);
+      cursor:grab;
+      display:flex; align-items:center; justify-content:center;
+      font-size:11px; font-weight:900;
     }
-    #quick .qbtn:hover{transform: translateY(-1px)}
-    #quick .qbtn.active{
-      border-color: rgba(255,215,0,.38);
-      box-shadow: 0 0 22px rgba(255,215,0,.12), var(--shadow);
-    }
+    .anchor.left{box-shadow:0 0 16px rgba(0,240,255,.25); border-color: rgba(0,240,255,.65)}
+    .anchor.right{box-shadow:0 0 16px rgba(255,215,0,.25); border-color: rgba(255,215,0,.70)}
+    .anchor.selected{outline:3px solid rgba(255,255,255,.22)}
+    .anchor:active{cursor:grabbing}
 
-    /* список пар */
-    .pairs{
+    .pairList{
       display:flex; flex-direction:column; gap:8px;
       margin-top:10px;
     }
-    .pairRow{
-      display:grid;
-      grid-template-columns: 1fr 26px 1fr 28px;
-      gap:8px;
-      align-items:center;
-      padding:10px;
-      border-radius: 14px;
-      border:1px solid rgba(255,255,255,.10);
+    .pairItem{
+      display:flex; gap:10px; align-items:center; justify-content:space-between;
+      padding:10px 12px; border-radius:14px;
       background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+      font-weight:800;
     }
-    .pairRow select{
-      background: rgba(0,0,0,.22);
-      border:1px solid rgba(255,255,255,.14);
-      font-weight:900;
-    }
-    .pairRow .arrow{opacity:.9; font-weight:900; text-align:center}
-    .pairRow .del{
-      width:28px; height:28px;
-      border-radius: 10px;
-      display:flex; align-items:center; justify-content:center;
-      background: rgba(255,77,77,.18);
-      border:1px solid rgba(255,77,77,.35);
-      cursor:pointer;
-      user-select:none;
-    }
-
-    /* вывод iframe */
-    #iframeOut{
-      height: 92px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size:12px;
-    }
+    .pairItem small{opacity:.75; font-weight:700}
+    .pairItem button{box-shadow:none}
   </style>
 </head>
 
 <body>
-  <div id="stage"></div>
+<header>
+  <h1>🧵 Pair — Редактор <span class="pill">канат</span></h1>
+  <span class="pill" id="statusPill">Готов</span>
+</header>
 
-  <!-- быстрые кнопки (+)(-)(+2) -->
-  <div id="quick" aria-label="Инструменты">
-    <div class="qbtn" id="btnPlus" title="Добавить точку">+</div>
-    <div class="qbtn" id="btnMinus" title="Удалить точку">−</div>
-    <div class="qbtn" id="btnPair" title="Добавить пару">+2</div>
-  </div>
-
-  <aside id="panel">
-    <h1>🧷 Pair — Редактор <span class="pill">на слайде</span></h1>
-
+<main>
+  <!-- LEFT -->
+  <section class="card">
     <div class="section">
-      <h2>🚀 Публикация <span class="pill" id="statusPill">Готов</span></h2>
+      <h2>⚙️ Настройки</h2>
 
-      <label>Название (для ID)</label>
-      <input type="text" id="title" placeholder="Например: matching-animals" value="matching">
-
-      <div class="btnbar">
-        <button class="ghost" id="btnCalibrate">Режим точек: ВКЛ/ВЫКЛ</button>
-        <button id="btnOkPublish">OK — сохранить и получить iframe</button>
-      </div>
-
-      <label style="margin-top:12px;">iframe для Genially (игра)</label>
-      <textarea id="iframeOut" readonly placeholder="Появится после OK…"></textarea>
-
-      <div class="btnbar">
-        <button class="ghost mini" id="btnCopy">📋 Копировать</button>
-        <button class="ghost mini" id="btnTest">🔎 Проверить JSON</button>
-      </div>
-
-      <div class="hint">
-        Работай в предпросмотре Genially: ставь точки поверх объектов, нажимай OK — получишь iframe игры.
-      </div>
-    </div>
-
-    <div class="section">
-      <h2>🧲 Точки</h2>
-
-      <div class="seg">
-        <button class="active" id="sideLeft">Левая колонка</button>
-        <button id="sideRight">Правая колонка</button>
-      </div>
-
-      <label style="margin-top:10px;">
-        <input type="checkbox" id="showLabels" checked>
-        Показывать подписи на точках (L1/R1…)
-      </label>
-
-      <label>
-        <input type="checkbox" id="hidePanelWhileDrag" checked>
-        Прятать панель во время перетаскивания точки
-      </label>
-
-      <div class="row" style="margin-top:10px;">
+      <div class="row">
         <div>
-          <label>
-            <input type="checkbox" id="snapToGrid">
-            Магнит к сетке
-          </label>
+          <label>Заголовок (для id)</label>
+          <input id="title" type="text" placeholder="My Pair Game" value="pair-game">
         </div>
         <div>
-          <label>Шаг сетки (px)</label>
-          <input type="number" id="gridStep" value="8" min="2" max="40">
+          <label>Автопроверка при заполнении всех связей</label>
+          <select id="autoCheck">
+            <option value="1" selected>Да</option>
+            <option value="0">Нет</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Толщина каната</label>
+          <input id="ropeWidth" type="number" min="8" max="40" value="18">
+        </div>
+        <div>
+          <label>Провисание (px)</label>
+          <input id="ropeSag" type="number" min="0" max="220" value="70">
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Финальный текст</label>
+          <input id="finalText" type="text" value="🎉 Отлично! Все пары совпали!">
+        </div>
+        <div>
+          <label>Картинка фидбека (URL, опционально)</label>
+          <input id="finalImg" type="url" placeholder="https://.../chest.png">
         </div>
       </div>
 
       <div class="hint">
-        Подсказки: Shift — движение по оси, Alt — включить магнит к сетке “на время”.
+        Слева и справа — точки. В режиме <b>+2</b>: кликни <b>левую</b> точку → кликни <b>правую</b> точку. Так добавляешь любое число пар.
       </div>
     </div>
 
     <div class="section">
-      <h2>🔗 Пары (что с чем мэтчится)</h2>
+      <h2>🧩 Точки и пары</h2>
 
-      <div class="hint" id="pairHint">
-        Нажми <b>+2</b> и выбери точку слева → точку справа, чтобы быстро добавить пару.
-        Либо добавляй пары в списке.
+      <div class="toolbar">
+        <button class="btn-ghost btn-mini" id="btnAddLeft">+ слева</button>
+        <button class="btn-ghost btn-mini" id="btnAddRight">+ справа</button>
+        <button class="btn-ghost btn-mini" id="btnRemove">− удалить точку</button>
+
+        <button class="btn-mini" id="btnPairMode">+2 режим пар</button>
+        <button class="btn-ghost btn-mini danger" id="btnClearPairs">Очистить пары</button>
+
+        <span class="pill k" id="pairHint">Режим пар: выкл</span>
       </div>
 
-      <div class="btnbar">
-        <button class="ghost mini" id="btnAddPair">Добавить пару в список</button>
-        <button class="danger mini" id="btnClearPairs">Очистить пары</button>
-      </div>
+      <div class="divider"></div>
 
-      <div class="pairs" id="pairsList"></div>
+      <label>Пары (для main):</label>
+      <div class="pairList" id="pairsList"></div>
+
+      <div class="hint">
+        Если линии мешают, пока ты двигаешь точку — они автоматически приглушаются во время drag.
+      </div>
     </div>
 
     <div class="section">
-      <h2>⚙️ Настройки игры</h2>
+      <h2>🚀 Публикация</h2>
 
       <div class="row">
-        <div>
-          <label>Соединение</label>
-          <select id="connectMode">
-            <option value="drag" selected>Перетаскиванием (как Wordwall)</option>
-            <option value="click">Клик-клик</option>
-          </select>
-        </div>
-        <div>
-          <label>Проверка</label>
-          <select id="checkMode">
-            <option value="button" selected>По кнопке «Проверить»</option>
-            <option value="instant">Сразу при соединении</option>
-          </select>
-        </div>
+        <button class="btn-ghost btn-mini" id="btnTest">🔎 Валидация JSON</button>
+        <button class="btn-ghost btn-mini" id="btnCopy">📋 Копировать iframe</button>
       </div>
 
-      <label style="margin-top:10px;">
-        <input type="checkbox" id="oneToOne" checked>
-        Один-к-одному (точка может иметь только 1 связь)
-      </label>
+      <label style="margin-top:12px;">iframe для Genially</label>
+      <textarea id="iframeOut" readonly placeholder="Нажми «Сохранить и получить iframe»"></textarea>
 
-      <div class="row" style="margin-top:10px;">
-        <div>
-          <label>Ошибка</label>
-          <select id="wrongBehavior">
-            <option value="mark" selected>Подсветить красным</option>
-            <option value="shakeRemove">Тряхнуть и удалить связь</option>
-          </select>
-        </div>
-        <div>
-          <label>
-            <input type="checkbox" id="showButtons" checked>
-            Показывать кнопки «Проверить/Сброс»
-          </label>
-        </div>
+      <div style="margin-top:12px;">
+        <button id="btnSave">💾 Сохранить и получить iframe</button>
+      </div>
+
+      <div class="hint">
+        Публикация идёт через сервер как в твоих «Utki». После — подожди 30–60 секунд, пока GitHub Pages подхватит JSON.
       </div>
     </div>
+  </section>
 
-    <div class="section">
-      <h2>🎨 Верёвочки (SVG)</h2>
+  <!-- RIGHT -->
+  <section class="card">
+    <h2>🧪 Предпросмотр на слайде (16:9)</h2>
+    <div id="stageWrap">
+      <svg id="svg" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+        <defs>
+          <!-- канато-подобная фактура -->
+          <pattern id="ropeTex" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(18)">
+            <rect width="10" height="10" fill="#caa15a"></rect>
+            <path d="M0 2 H10" stroke="#b38b45" stroke-width="2" opacity="0.75"></path>
+            <path d="M0 6 H10" stroke="#d8b46a" stroke-width="2" opacity="0.55"></path>
+            <path d="M0 9 H10" stroke="#9a7539" stroke-width="1" opacity="0.35"></path>
+          </pattern>
 
-      <div class="row">
-        <div>
-          <label>Толщина</label>
-          <input type="number" id="ropeWidth" value="8" min="2" max="24">
-        </div>
-        <div>
-          <label>Кривизна (0–0.7)</label>
-          <input type="number" id="curve" value="0.35" step="0.05" min="0" max="0.7">
-        </div>
-      </div>
+          <filter id="ropeShadow" x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity="0.35"/>
+          </filter>
+        </defs>
+      </svg>
 
-      <div class="row" style="margin-top:10px;">
-        <div>
-          <label>Цвет верёвки</label>
-          <input type="text" id="ropeColor" value="#66ccff">
-        </div>
-        <div>
-          <label>
-            <input type="checkbox" id="glow" checked>
-            Неоновое свечение
-          </label>
-        </div>
-      </div>
-
-      <div class="row" style="margin-top:10px;">
-        <div>
-          <label>Правильно</label>
-          <input type="text" id="correctColor" value="#5cff9d">
-        </div>
-        <div>
-          <label>Неправильно</label>
-          <input type="text" id="wrongColor" value="#ff4d4d">
-        </div>
-      </div>
-
-      <label style="margin-top:10px;">
-        <input type="checkbox" id="drawAnim" checked>
-        Анимация рисования верёвки
-      </label>
+      <div id="stage"></div>
     </div>
 
-    <div class="section">
-      <h2>🎉 Финальный фидбек</h2>
-
-      <label>
-        <input type="checkbox" id="feedbackEnabled" checked>
-        Показывать финальный фидбек
-      </label>
-
-      <label>Режим</label>
-      <select id="feedbackMode">
-        <option value="both" selected>Картинка + текст</option>
-        <option value="text">Только текст</option>
-        <option value="image">Только картинка</option>
-      </select>
-
-      <label style="margin-top:10px;">Текст</label>
-      <input type="text" id="finalText" value="🎉 Молодец! Все пары найдены.">
-
-      <label style="margin-top:10px;">Картинка (URL)</label>
-      <input type="url" id="finalImage" placeholder="https://.../chest.png">
-
-      <div class="hint">Фидбек показывается, когда все пары соединены правильно.</div>
+    <div class="hint" style="margin-top:12px;">
+      Подсказка: точки перетаскиваются. В режиме +2 пары создаются кликами (не drag).
     </div>
-  </aside>
+  </section>
+</main>
 
-  <script>
-    const $ = (s) => document.querySelector(s);
+<script>
+  const $ = (s) => document.querySelector(s);
 
-    // Публикация — как у тебя
-    const ENDPOINT    = "https://server-kjnn.onrender.com/publish";
-    const PUBLISH_KEY = "nika_read_pub_2025";
-    const BASE_MAIN   = "https://nikashum93.github.io/pair/main.html";
-    const JSON_FOLDER = "data";
+  // === publish (как у Utki) ===
+  const ENDPOINT    = "https://server-kjnn.onrender.com/publish";
+  const PUBLISH_KEY = "nika_read_pub_2025";
+  const BASE_MAIN   = "https://nikashum93.github.io/pair/main.html";
+  const JSON_FOLDER = "data"; // публикуем в texts/data как у тебя
 
-    // Состояние редактора
-    let calibrationOn = true;
-    let activeSide = 'left'; // left|right
-    let selectedAnchorId = null;
+  // ===== state =====
+  const anchors = []; // {id, side:'left'|'right', x:0..1, y:0..1}
+  const pairs = [];   // {leftId,rightId}
+  let selectedId = null;
 
-    let pairAddMode = false;
-    let pairFrom = null;
+  let pairAddMode = false;
+  let pairFrom = null; // leftId
+  let draggingId = null;
 
-    // anchors храним в процентах
-    // anchors: { id: {x:0..1, y:0..1, side:'left'|'right'} }
-    const anchors = {};
-    // пары правильных ответов
-    const pairs = []; // {from:'L1', to:'R1'}
+  // ===== helpers =====
+  function uid(prefix='p'){
+    return prefix + Math.random().toString(16).slice(2,10);
+  }
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+  function stageRect(){ return $('#stageWrap').getBoundingClientRect(); }
 
-    // UI refs
+  function setStatus(t){
+    $('#statusPill').textContent = t;
+  }
+
+  function ropeD(x1,y1,x2,y2,sag){
+    const mx = (x1+x2)/2;
+    const my = (y1+y2)/2 + sag;
+    return `M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`;
+  }
+
+  function drawRope(svg, x1,y1,x2,y2, good=null){
+    const w = Math.max(8, Math.min(40, parseInt($('#ropeWidth').value||'18',10)));
+    const sag = Math.max(0, Math.min(220, parseInt($('#ropeSag').value||'70',10)));
+
+    const d = ropeD(x1,y1,x2,y2,sag);
+
+    const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+
+    // shadow
+    const sh = document.createElementNS("http://www.w3.org/2000/svg","path");
+    sh.setAttribute("d", d);
+    sh.setAttribute("fill","none");
+    sh.setAttribute("stroke","#000");
+    sh.setAttribute("stroke-width", w + 6);
+    sh.setAttribute("stroke-linecap","round");
+    sh.setAttribute("opacity","0.16");
+    sh.setAttribute("filter","url(#ropeShadow)");
+
+    // body texture
+    const body = document.createElementNS("http://www.w3.org/2000/svg","path");
+    body.setAttribute("d", d);
+    body.setAttribute("fill","none");
+    body.setAttribute("stroke", "url(#ropeTex)");
+    body.setAttribute("stroke-width", w);
+    body.setAttribute("stroke-linecap","round");
+    body.setAttribute("stroke-linejoin","round");
+
+    // highlight
+    const hl = document.createElementNS("http://www.w3.org/2000/svg","path");
+    hl.setAttribute("d", d);
+    hl.setAttribute("fill","none");
+    hl.setAttribute("stroke", "#fff");
+    hl.setAttribute("stroke-width", Math.max(2, w*0.22));
+    hl.setAttribute("stroke-linecap","round");
+    hl.setAttribute("opacity","0.28");
+
+    // correctness overlay (тонкая подсветка сверху)
+    if (good === true || good === false){
+      const ov = document.createElementNS("http://www.w3.org/2000/svg","path");
+      ov.setAttribute("d", d);
+      ov.setAttribute("fill","none");
+      ov.setAttribute("stroke", good ? "#00e676" : "#ff5252");
+      ov.setAttribute("stroke-width", Math.max(3, w*0.35));
+      ov.setAttribute("stroke-linecap","round");
+      ov.setAttribute("opacity","0.75");
+      g.appendChild(ov);
+    }
+
+    g.appendChild(sh);
+    g.appendChild(body);
+    g.appendChild(hl);
+
+    svg.appendChild(g);
+    return g;
+  }
+
+  function render(){
     const stage = $('#stage');
-    const panel = $('#panel');
-    const statusPill = $('#statusPill');
+    stage.innerHTML = '';
+    const svg = $('#svg');
+    // clear ropes, keep defs
+    [...svg.querySelectorAll('g')].forEach(g=>g.remove());
 
-    // ---------- helpers ----------
-    function setStatus(t){ statusPill.textContent = t; }
-
-    function clamp01(v){ return Math.max(0, Math.min(1, v)); }
-    function snap(v, step){ return Math.round(v / step) * step; }
-
-    function stageRect(){ return stage.getBoundingClientRect(); }
-
-    function toPx(ax){
-      const r = stageRect();
-      return { x: ax.x * r.width, y: ax.y * r.height };
-    }
-    function toRel(pxX, pxY){
-      const r = stageRect();
-      return { x: clamp01(pxX / r.width), y: clamp01(pxY / r.height) };
-    }
-
-    function nextId(side){
-      const pref = (side === 'left') ? 'L' : 'R';
-      let n = 1;
-      while(anchors[pref + n]) n++;
-      return pref + n;
-    }
-
-    function refreshSideButtons(){
-      $('#sideLeft').classList.toggle('active', activeSide === 'left');
-      $('#sideRight').classList.toggle('active', activeSide === 'right');
-    }
-
-    function setQuickActive(){
-      $('#btnPair').classList.toggle('active', pairAddMode);
-    }
-
-    function setLabelsVisibility(){
-      const on = $('#showLabels').checked;
-      Object.values(anchors).forEach(a=>{
-        const el = document.querySelector(`.anchor[data-id="${a.id}"]`);
-        if(el) el.textContent = on ? a.id : '';
-      });
-    }
-
-    function selectAnchor(id){
-      selectedAnchorId = id;
-      document.querySelectorAll('.anchor').forEach(el=>el.classList.remove('selected'));
-      const el = document.querySelector(`.anchor[data-id="${id}"]`);
-      if(el) el.classList.add('selected');
-    }
-
-    // ---------- anchors UI ----------
-    function createAnchor(side){
-      const id = nextId(side);
-      const rel = { x: 0.5, y: 0.5 }; // по центру (потом перетащишь)
-      anchors[id] = { id, side, x: rel.x, y: rel.y };
-
+    // render anchors
+    for(const a of anchors){
       const el = document.createElement('div');
-      el.className = 'anchor ' + side;
-      el.dataset.id = id;
-      el.textContent = $('#showLabels').checked ? id : '';
+      el.className = `anchor ${a.side}` + (a.id===selectedId ? ' selected' : '');
+      el.dataset.id = a.id;
+      el.textContent = a.side === 'left' ? 'L' : 'R';
+
+      const W = stage.clientWidth;
+      const H = stage.clientHeight;
+      el.style.left = (a.x * W) + 'px';
+      el.style.top  = (a.y * H) + 'px';
+
+      el.addEventListener('pointerdown', (e)=>onAnchorDown(e, a.id));
+      el.addEventListener('click', (e)=>onAnchorClick(e, a.id));
+
       stage.appendChild(el);
-
-      // позиция
-      updateAnchorEl(id);
-
-      // клик — выбор / добавление пары
-      el.addEventListener('click', (e)=>{
-        e.stopPropagation();
-        if(!calibrationOn) return;
-
-        selectAnchor(id);
-
-        // режим +2: L -> R
-        if(pairAddMode){
-          const a = anchors[id];
-          if(!pairFrom){
-            if(a.side !== 'left'){ return; }
-            pairFrom = id;
-            $('#pairHint').innerHTML = `Выбрана <b>${pairFrom}</b>. Теперь кликни точку справа.`;
-            return;
-          }else{
-            if(a.side !== 'right'){ return; }
-            addPair(pairFrom, id);
-            pairFrom = null;
-            $('#pairHint').innerHTML = `Пара добавлена ✅. Можно продолжать (слева → справа).`;
-            return;
-          }
-        }
-      });
-
-      // drag
-      enableDrag(el);
-
-      refreshPairsUI();
-      return id;
     }
 
-    function updateAnchorEl(id){
-      const a = anchors[id];
+    // render pair ropes (preview)
+    const rect = stageRect();
+    const W = rect.width, H = rect.height;
+    for(const pr of pairs){
+      const L = anchors.find(x=>x.id===pr.leftId);
+      const R = anchors.find(x=>x.id===pr.rightId);
+      if(!L || !R) continue;
+      const x1 = L.x * 1920, y1 = L.y * 1080;
+      const x2 = R.x * 1920, y2 = R.y * 1080;
+      drawRope(svg, x1,y1,x2,y2, null);
+    }
+
+    renderPairsList();
+  }
+
+  function renderPairsList(){
+    const list = $('#pairsList');
+    list.innerHTML = '';
+
+    if(!pairs.length){
+      const d = document.createElement('div');
+      d.className = 'hint';
+      d.textContent = 'Пока нет пар. Включи режим +2 и кликай: слева → справа.';
+      list.appendChild(d);
+      return;
+    }
+
+    pairs.forEach((p, idx)=>{
+      const item = document.createElement('div');
+      item.className = 'pairItem';
+      item.innerHTML = `<div>Пара ${idx+1}: <small>${p.leftId}</small> → <small>${p.rightId}</small></div>`;
+      const del = document.createElement('button');
+      del.className = 'btn-ghost btn-mini';
+      del.textContent = 'Удалить';
+      del.addEventListener('click', ()=>{
+        pairs.splice(idx,1);
+        render();
+      });
+      item.appendChild(del);
+      list.appendChild(item);
+    });
+  }
+
+  // ===== interaction =====
+  function onAnchorClick(e, id){
+    e.stopPropagation();
+
+    // pairing mode: click L then R
+    if(pairAddMode){
+      const a = anchors.find(x=>x.id===id);
       if(!a) return;
-      const el = document.querySelector(`.anchor[data-id="${id}"]`);
-      if(!el) return;
-      const px = toPx(a);
-      el.style.left = px.x + 'px';
-      el.style.top  = px.y + 'px';
+
+      if(!pairFrom){
+        if(a.side !== 'left') return;
+        pairFrom = id;
+        $('#pairHint').innerHTML = `Режим пар: выбрана <b>${pairFrom}</b>, теперь кликни точку справа`;
+        return;
+      } else {
+        if(a.side !== 'right') return;
+        addPair(pairFrom, id);
+        pairFrom = null; // ✅ КЛЮЧ: сброс, чтобы можно было добавлять бесконечно
+        $('#pairHint').innerHTML = `Пара добавлена ✅. Выбери следующую точку слева`;
+        render();
+        return;
+      }
     }
 
-    function removeAnchor(id){
-      if(!id || !anchors[id]) return;
+    // normal select
+    selectedId = id;
+    render();
+  }
 
-      // удалить пары, где участвует
-      for(let i = pairs.length - 1; i >= 0; i--){
-        if(pairs[i].from === id || pairs[i].to === id) pairs.splice(i,1);
-      }
+  function onAnchorDown(e, id){
+    e.preventDefault();
+    e.stopPropagation();
+    selectedId = id;
+    draggingId = id;
 
-      // удалить элемент
-      const el = document.querySelector(`.anchor[data-id="${id}"]`);
-      if(el) el.remove();
+    // while dragging fade ropes
+    $('#svg').style.opacity = '0.18';
 
-      delete anchors[id];
-      if(selectedAnchorId === id) selectedAnchorId = null;
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
 
-      refreshPairsUI();
+    function move(ev){
+      const rect = stageRect();
+      const nx = clamp((ev.clientX - rect.left)/rect.width, 0, 1);
+      const ny = clamp((ev.clientY - rect.top)/rect.height, 0, 1);
+      const a = anchors.find(x=>x.id===id);
+      if(a){ a.x = nx; a.y = ny; }
+      render();
+    }
+    function up(ev){
+      try{ el.releasePointerCapture(e.pointerId); }catch(_){}
+      $('#svg').style.opacity = '1';
+      draggingId = null;
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      render();
     }
 
-    function enableDrag(el){
-      let dragging = false;
-      let pointerId = null;
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
 
-      function onDown(e){
-        if(!calibrationOn) return;
-        dragging = true;
-        pointerId = e.pointerId;
-        el.setPointerCapture(pointerId);
+  function addAnchor(side){
+    const id = uid(side==='left'?'L':'R');
+    const x = side==='left' ? 0.22 : 0.78;
+    const y = 0.25 + Math.random()*0.5;
+    anchors.push({id, side, x, y});
+    selectedId = id;
+    render();
+  }
 
-        document.body.classList.add('dragging');
-        el.classList.add('dragging');
+  function removeSelected(){
+    if(!selectedId) return;
 
-        if($('#hidePanelWhileDrag').checked){
-          panel.classList.add('drag-hide');
-        }
+    const idx = anchors.findIndex(a=>a.id===selectedId);
+    if(idx<0) return;
 
-        // чтобы можно было поставить в любое место: игнорируем “попадание на другие точки”
-        e.preventDefault();
-        e.stopPropagation();
-      }
+    // remove anchor
+    const removed = anchors.splice(idx,1)[0];
 
-      function onMove(e){
-        if(!dragging) return;
-        const r = stageRect();
-
-        // координаты внутри stage
-        let x = e.clientX - r.left;
-        let y = e.clientY - r.top;
-
-        // Shift — движение по оси
-        if(e.shiftKey){
-          // выбираем “какая ось активнее”
-          // простая логика: если сильнее смещение по X — фиксируем Y; иначе фиксируем X
-          // чтобы не прыгало, фиксируем относительно текущей позиции
-          const id = el.dataset.id;
-          const a = anchors[id];
-          const cur = toPx(a);
-          const dx = Math.abs(x - cur.x);
-          const dy = Math.abs(y - cur.y);
-          if(dx > dy) y = cur.y; else x = cur.x;
-        }
-
-        // Магнит: чекбокс или Alt “на время”
-        const snapOn = $('#snapToGrid').checked || e.altKey;
-        if(snapOn){
-          const step = Math.max(2, Math.min(40, parseInt($('#gridStep').value || '8',10)));
-          x = snap(x, step);
-          y = snap(y, step);
-        }
-
-        // сохраняем в процентах
-        const rel = toRel(x, y);
-        const id = el.dataset.id;
-        anchors[id].x = rel.x;
-        anchors[id].y = rel.y;
-
-        updateAnchorEl(id);
-      }
-
-      function onUp(){
-        if(!dragging) return;
-        dragging = false;
-        document.body.classList.remove('dragging');
-        el.classList.remove('dragging');
-        panel.classList.remove('drag-hide');
-      }
-
-      el.addEventListener('pointerdown', onDown);
-      window.addEventListener('pointermove', onMove);
-      window.addEventListener('pointerup', onUp);
-      window.addEventListener('pointercancel', onUp);
+    // remove pairs referencing it
+    for(let i=pairs.length-1;i>=0;i--){
+      if(pairs[i].leftId===removed.id || pairs[i].rightId===removed.id) pairs.splice(i,1);
     }
 
-    // при ресайзе — просто перерисуем позиции по сохранённым процентам
-    window.addEventListener('resize', ()=>{
-      Object.keys(anchors).forEach(updateAnchorEl);
-    });
+    selectedId = null;
+    // also clear pairFrom if it was this one
+    if(pairFrom===removed.id) pairFrom=null;
 
-    // ---------- pairs UI ----------
-    function addPair(from, to){
-      if(!from || !to) return;
-      // избегаем дублей
-      if(pairs.some(p => p.from === from && p.to === to)) return;
-      pairs.push({from, to});
-      refreshPairsUI();
+    render();
+  }
+
+  function addPair(leftId, rightId){
+    // ensure exists + correct sides
+    const L = anchors.find(a=>a.id===leftId && a.side==='left');
+    const R = anchors.find(a=>a.id===rightId && a.side==='right');
+    if(!L || !R) return;
+
+    // prevent duplicates: one left -> one right (overwrite behavior)
+    for(let i=pairs.length-1;i>=0;i--){
+      if(pairs[i].leftId===leftId || pairs[i].rightId===rightId){
+        pairs.splice(i,1);
+      }
     }
+    pairs.push({leftId, rightId});
+  }
 
-    function refreshPairsUI(){
-      const list = $('#pairsList');
-      list.innerHTML = '';
+  function clearPairs(){
+    pairs.length = 0;
+    pairFrom = null;
+    $('#pairHint').textContent = pairAddMode ? 'Режим пар: выбери точку слева' : 'Режим пар: выкл';
+    render();
+  }
 
-      const leftIds  = Object.values(anchors).filter(a=>a.side==='left').map(a=>a.id).sort();
-      const rightIds = Object.values(anchors).filter(a=>a.side==='right').map(a=>a.id).sort();
+  function togglePairMode(){
+    pairAddMode = !pairAddMode;
+    pairFrom = null;
+    $('#btnPairMode').textContent = pairAddMode ? '✅ +2 режим пар' : '+2 режим пар';
+    $('#pairHint').textContent = pairAddMode ? 'Режим пар: выбери точку слева' : 'Режим пар: выкл';
+    setStatus(pairAddMode ? 'Режим пар' : 'Готов');
+  }
 
-      pairs.forEach((p, idx)=>{
-        const row = document.createElement('div');
-        row.className = 'pairRow';
+  // ===== config + publish =====
+  function makeId(){
+    const base = ($('#title').value || 'pair').trim().toLowerCase()
+      .normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')
+      .slice(0,40) || 'pair';
 
-        const sFrom = document.createElement('select');
-        leftIds.forEach(id=>{
-          const o = document.createElement('option');
-          o.value=id; o.textContent=id;
-          if(id===p.from) o.selected=true;
-          sFrom.appendChild(o);
-        });
+    const d=new Date(), p=n=>String(n).padStart(2,'0');
+    const stamp = `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+    return `${base}-${stamp}`;
+  }
 
-        const arrow = document.createElement('div');
-        arrow.className='arrow';
-        arrow.textContent='→';
+  function collectConfig(){
+    return {
+      version: 1,
+      title: ($('#title').value || 'pair').trim(),
+      autoCheck: $('#autoCheck').value === '1',
+      style: {
+        ropeWidth: Math.max(8, Math.min(40, parseInt($('#ropeWidth').value||'18',10))),
+        ropeSag:   Math.max(0, Math.min(220, parseInt($('#ropeSag').value||'70',10))),
+      },
+      feedback: {
+        finalText: ($('#finalText').value || '').trim(),
+        finalImage: ($('#finalImg').value || '').trim()
+      },
+      anchors: anchors.map(a=>({id:a.id, side:a.side, x:a.x, y:a.y})),
+      pairs: pairs.map(p=>({leftId:p.leftId, rightId:p.rightId}))
+    };
+  }
 
-        const sTo = document.createElement('select');
-        rightIds.forEach(id=>{
-          const o = document.createElement('option');
-          o.value=id; o.textContent=id;
-          if(id===p.to) o.selected=true;
-          sTo.appendChild(o);
-        });
+  function validate(cfg){
+    const L = cfg.anchors.filter(a=>a.side==='left').length;
+    const R = cfg.anchors.filter(a=>a.side==='right').length;
+    if(L===0 || R===0) return 'Добавь точки слева и справа.';
+    if(cfg.pairs.length===0) return 'Добавь хотя бы одну пару (режим +2).';
+    // ensure all pairs valid
+    for(const p of cfg.pairs){
+      const l = cfg.anchors.find(a=>a.id===p.leftId && a.side==='left');
+      const r = cfg.anchors.find(a=>a.id===p.rightId && a.side==='right');
+      if(!l || !r) return 'Есть пара с несуществующей точкой. Удали/создай заново.';
+    }
+    return null;
+  }
 
-        const del = document.createElement('div');
-        del.className='del';
-        del.textContent='×';
-        del.title='Удалить пару';
+  async function publish(){
+    setStatus('Публикую…');
 
-        sFrom.addEventListener('change', ()=>{ pairs[idx].from = sFrom.value; });
-        sTo.addEventListener('change',   ()=>{ pairs[idx].to   = sTo.value; });
+    const cfg = collectConfig();
+    const err = validate(cfg);
+    if(err){ alert(err); setStatus('Ошибка'); return; }
 
-        del.addEventListener('click', ()=>{
-          pairs.splice(idx,1);
-          refreshPairsUI();
-        });
+    const id = makeId();
+    const payload = {
+      id,
+      mode: "json",
+      folder: JSON_FOLDER,
+      content: JSON.stringify(cfg, null, 2)
+    };
 
-        row.appendChild(sFrom);
-        row.appendChild(arrow);
-        row.appendChild(sTo);
-        row.appendChild(del);
-        list.appendChild(row);
+    try{
+      const res = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: {"Content-Type":"application/json","X-Publish-Key":PUBLISH_KEY},
+        body: JSON.stringify(payload)
       });
-
-      // если нет точек — подсказка
-      if(!leftIds.length || !rightIds.length){
-        $('#pairHint').innerHTML = `Добавь точки: выбери колонку (левая/правая) и нажимай <b>+</b>.`;
+      if(!res.ok){
+        const t = await res.text().catch(()=>res.statusText);
+        throw new Error(t || 'Server error');
       }
+
+      const iframe = `<iframe src="${BASE_MAIN}?id=${encodeURIComponent(id)}" style="border:0;width:100%;height:100%;" allow="autoplay" allowfullscreen></iframe>`;
+      $('#iframeOut').value = iframe;
+
+      setStatus('Готово ✅');
+      alert('Опубликовано! Подожди 30–60 секунд, пока ссылка обновится.');
+    }catch(e){
+      setStatus('Сеть/ошибка');
+      alert('Сеть/сервер: ' + e.message);
     }
+  }
 
-    // ---------- config / publish ----------
-    function makeIdFromTitle(){
-      const t = ($('#title').value || 'matching').trim();
-      const slug = t.toLowerCase()
-        .normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
-        .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')
-        .slice(0,40) || 'matching';
-      const d=new Date(), p=n=>String(n).padStart(2,'0');
-      const stamp = `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
-      return `${slug}-${stamp}`;
-    }
+  function copyIframe(){
+    const v = $('#iframeOut').value.trim();
+    if(!v){ alert('Сначала сохрани, чтобы получить iframe.'); return; }
+    navigator.clipboard.writeText(v).catch(()=>{});
+  }
 
-    function collectConfig(){
-      // anchors уже в процентах
-      const outAnchors = {};
-      Object.values(anchors).forEach(a=>{
-        outAnchors[a.id] = { x:a.x, y:a.y, side:a.side };
-      });
+  function quickTest(){
+    const cfg = collectConfig();
+    const err = validate(cfg);
+    if(err){ alert(err); return; }
+    alert('JSON валиден ✅\nТочек: ' + cfg.anchors.length + '\nПар: ' + cfg.pairs.length);
+    console.log(cfg);
+  }
 
-      const cfg = {
-        version: 1,
-        anchors: outAnchors,
-        pairs: [...pairs],
+  // ===== init =====
+  $('#btnAddLeft').addEventListener('click', ()=>addAnchor('left'));
+  $('#btnAddRight').addEventListener('click', ()=>addAnchor('right'));
+  $('#btnRemove').addEventListener('click', removeSelected);
+  $('#btnPairMode').addEventListener('click', togglePairMode);
+  $('#btnClearPairs').addEventListener('click', clearPairs);
 
-        settings: {
-          connectMode: $('#connectMode').value,     // drag|click
-          checkMode: $('#checkMode').value,         // button|instant
-          oneToOne: $('#oneToOne').checked,
-          wrongBehavior: $('#wrongBehavior').value, // mark|shakeRemove
-          showButtons: $('#showButtons').checked
-        },
+  $('#btnSave').addEventListener('click', publish);
+  $('#btnCopy').addEventListener('click', copyIframe);
+  $('#btnTest').addEventListener('click', quickTest);
 
-        style: {
-          ropeWidth: Math.max(2, Math.min(24, parseInt($('#ropeWidth').value || '8',10))),
-          curve: Math.max(0, Math.min(0.7, parseFloat($('#curve').value || '0.35'))),
-          ropeColor: ($('#ropeColor').value || '#66ccff').trim(),
-          correctColor: ($('#correctColor').value || '#5cff9d').trim(),
-          wrongColor: ($('#wrongColor').value || '#ff4d4d').trim(),
-          glow: $('#glow').checked,
-          drawAnim: $('#drawAnim').checked
-        },
+  window.addEventListener('resize', render);
 
-        feedback: {
-          enabled: $('#feedbackEnabled').checked,
-          mode: $('#feedbackMode').value, // both|text|image
-          text: ($('#finalText').value || '').trim(),
-          image: ($('#finalImage').value || '').trim()
-        }
-      };
-
-      return cfg;
-    }
-
-    function validate(cfg){
-      const a = cfg.anchors || {};
-      const left  = Object.keys(a).filter(id=>a[id].side==='left');
-      const right = Object.keys(a).filter(id=>a[id].side==='right');
-      if(left.length < 1 || right.length < 1) return 'Нужны точки и слева, и справа.';
-      if(!cfg.pairs || cfg.pairs.length < 1) return 'Добавь хотя бы одну пару (+2).';
-      // проверка, что все пары валидны
-      for(const p of cfg.pairs){
-        if(!a[p.from] || !a[p.to]) return 'Есть пара с удалённой точкой — проверь список пар.';
-        if(a[p.from].side !== 'left' || a[p.to].side !== 'right') return 'Пары должны быть слева → справа.';
-      }
-      if(cfg.feedback?.enabled){
-        const m = cfg.feedback.mode;
-        if(m === 'image' && !cfg.feedback.image) return 'Для “Только картинка” нужна ссылка на картинку.';
-        if(m === 'text' && !cfg.feedback.text) return 'Для “Только текст” нужен текст.';
-        if(m === 'both' && !cfg.feedback.text && !cfg.feedback.image) return 'В режиме “Картинка + текст” нужен текст или картинка.';
-      }
-      return null;
-    }
-
-    async function publish(){
-      setStatus('Публикую…');
-      const cfg = collectConfig();
-      const err = validate(cfg);
-      if(err){ alert(err); setStatus('Ошибка'); return; }
-
-      const id = makeIdFromTitle();
-
-      const payload = {
-        id,
-        mode: "json",
-        folder: JSON_FOLDER,
-        content: JSON.stringify(cfg, null, 2)
-      };
-
-      try{
-        const res = await fetch(ENDPOINT, {
-          method: "POST",
-          headers: {
-            "Content-Type":"application/json",
-            "X-Publish-Key": PUBLISH_KEY
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if(!res.ok){
-          const t = await res.text().catch(()=>res.statusText);
-          throw new Error(t || 'Server error');
-        }
-
-        const iframe = `<iframe src="${BASE_MAIN}?id=${encodeURIComponent(id)}" width="960" height="540" style="border:0;" allow="autoplay" allowfullscreen></iframe>`;
-        $('#iframeOut').value = iframe;
-
-        setStatus('Готово ✅');
-        alert('Опубликовано! Подожди 30–60 секунд и вставляй iframe игры в Genially.');
-      }catch(e){
-        setStatus('Сеть/ошибка');
-        alert('Сеть/сервер: ' + e.message);
-      }
-    }
-
-    // ---------- UI wiring ----------
-    function toggleCalibration(){
-      calibrationOn = !calibrationOn;
-      $('#btnCalibrate').textContent = 'Режим точек: ' + (calibrationOn ? 'ВКЛ' : 'ВЫКЛ');
-      // при выкл калибровки — точки не двигаем, но пусть видны
-      setStatus('Готов');
-    }
-
-    $('#sideLeft').addEventListener('click', ()=>{ activeSide='left'; refreshSideButtons(); });
-    $('#sideRight').addEventListener('click', ()=>{ activeSide='right'; refreshSideButtons(); });
-
-    $('#btnPlus').addEventListener('click', ()=>{
-      const id = createAnchor(activeSide);
-      selectAnchor(id);
-      setLabelsVisibility();
-    });
-    $('#btnMinus').addEventListener('click', ()=>{
-      const id = selectedAnchorId || (activeSide==='left'
-        ? Object.keys(anchors).filter(k=>k.startsWith('L')).sort().pop()
-        : Object.keys(anchors).filter(k=>k.startsWith('R')).sort().pop()
-      );
-      if(!id){ return; }
-      removeAnchor(id);
-      refreshPairsUI();
-    });
-
-    function togglePairMode(){
-      pairAddMode = !pairAddMode;
-      pairFrom = null;
-      setQuickActive();
-      $('#pairHint').innerHTML = pairAddMode
-        ? 'Режим <b>+2</b> включён: кликни точку <b>слева</b>, затем точку <b>справа</b>.'
-        : 'Нажми <b>+2</b> и выбери слева → справа, чтобы быстро добавить пару.';
-    }
-    $('#btnPair').addEventListener('click', togglePairMode);
-
-    $('#btnAddPair').addEventListener('click', ()=>{
-      const leftIds  = Object.values(anchors).filter(a=>a.side==='left').map(a=>a.id).sort();
-      const rightIds = Object.values(anchors).filter(a=>a.side==='right').map(a=>a.id).sort();
-      if(!leftIds.length || !rightIds.length){ alert('Сначала добавь точки слева и справа.'); return; }
-      addPair(leftIds[0], rightIds[0]);
-    });
-
-    $('#btnClearPairs').addEventListener('click', ()=>{
-      if(!confirm('Очистить все пары?')) return;
-      pairs.splice(0, pairs.length);
-      refreshPairsUI();
-    });
-
-    $('#showLabels').addEventListener('change', setLabelsVisibility);
-
-    $('#btnCalibrate').addEventListener('click', toggleCalibration);
-    $('#btnOkPublish').addEventListener('click', publish);
-
-    $('#btnTest').addEventListener('click', ()=>{
-      const cfg = collectConfig();
-      const err = validate(cfg);
-      if(err){ alert('Ошибка: ' + err); return; }
-      alert('JSON валиден ✅\nТочек: ' + Object.keys(cfg.anchors).length + '\nПар: ' + cfg.pairs.length);
-      console.log(cfg);
-    });
-
-    $('#btnCopy').addEventListener('click', async ()=>{
-      const v = ($('#iframeOut').value || '').trim();
-      if(!v){ alert('Сначала нажми OK — чтобы появился iframe.'); return; }
-      try{ await navigator.clipboard.writeText(v); }catch(_){}
-    });
-
-    // старт
-    refreshSideButtons();
-    setQuickActive();
-    toggleCalibration(); // сделаем ВКЛ на старте
-    toggleCalibration(); // чтобы текст кнопки был корректный
-  </script>
+  // старт: по 2 точки как удобный шаблон
+  addAnchor('left'); addAnchor('left');
+  addAnchor('right'); addAnchor('right');
+  // и сразу включим режим пар
+  togglePairMode();
+  render();
+</script>
 </body>
 </html>
