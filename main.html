@@ -3,560 +3,455 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Pair — Matching</title>
-
+  <title>Pair — Game</title>
   <style>
-    html,body{margin:0;padding:0;background:transparent;overflow:hidden;height:100%}
-    #root{position:absolute; inset:0; pointer-events:auto}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background: transparent;
+      overflow:hidden;
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    }
+    #root{
+      position:fixed; inset:0;
+      width:100vw; height:100vh;
+      pointer-events:auto;
+    }
+    #svg{
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      pointer-events:none;
+    }
+    .anchor{
+      position:absolute;
+      width:24px; height:24px;
+      border-radius:999px;
+      transform: translate(-50%,-50%);
+      display:flex; align-items:center; justify-content:center;
+      font-size:11px; font-weight:900;
+      cursor:pointer;
+      user-select:none;
+      touch-action:none;
+    }
+    .anchor.left{
+      border:2px solid rgba(0,240,255,.75);
+      background: rgba(0,0,0,.35);
+      box-shadow:0 0 18px rgba(0,240,255,.22);
+    }
+    .anchor.right{
+      border:2px solid rgba(255,215,0,.80);
+      background: rgba(0,0,0,.35);
+      box-shadow:0 0 18px rgba(255,215,0,.22);
+    }
 
     /* HUD */
     #hud{
-      position:absolute;
-      left:16px; top:16px;
-      display:flex; gap:10px; flex-wrap:wrap;
-      z-index:20;
+      position:absolute; top:18px; left:18px;
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+      z-index:10;
+    }
+    .pill{
+      padding:10px 14px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.16);
+      background: rgba(0,0,0,.45);
+      color:#fff;
+      font-weight:900;
+      box-shadow: 0 10px 24px rgba(0,0,0,.25);
     }
     .btn{
-      border:none;
-      border-radius:999px;
       padding:10px 14px;
-      font-weight:900;
-      cursor:pointer;
-      background: rgba(255,255,255,.90);
-      color:#111;
-      box-shadow: 0 10px 24px rgba(0,0,0,.22);
-      font-size:13px;
-    }
-    .btn:active{transform: translateY(1px)}
-    .pill{
       border-radius:999px;
-      padding:10px 14px;
-      font-weight:900;
-      background: rgba(0,0,0,.35);
+      border:1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.10);
       color:#fff;
-      border:1px solid rgba(255,255,255,.14);
-      box-shadow: 0 10px 24px rgba(0,0,0,.22);
-      font-size:13px;
-    }
-
-    /* SVG overlay */
-    svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible; z-index:5}
-
-    /* Anchors (в игре можно почти невидимыми, но кликабельными) */
-    .anchor{
-      position:absolute;
-      width:22px; height:22px;
-      border-radius:999px;
-      transform: translate(-50%,-50%);
-      background: rgba(255,255,255,.14);
-      border:2px solid rgba(255,255,255,.55);
-      box-shadow: 0 0 18px rgba(0,240,255,.18);
+      font-weight:900;
       cursor:pointer;
-      z-index:10;
-      user-select:none;
     }
-    .anchor.left{border-color: rgba(0,240,255,.75)}
-    .anchor.right{border-color: rgba(255,215,0,.75)}
-    .anchor.active{outline: 3px solid rgba(255,255,255,.18)}
+    .btn:hover{background: rgba(255,255,255,.14)}
 
-    /* финальный фидбек */
-    #final{
+    /* final */
+    #finalOverlay{
       position:absolute; inset:0;
+      background: rgba(0,0,0,.55);
       display:none;
-      align-items:center;
-      justify-content:center;
+      align-items:center; justify-content:center;
       z-index:50;
-      pointer-events:auto;
+      padding:24px;
     }
-    #final .box{
-      max-width:min(720px, 86vw);
-      background: rgba(0,0,0,.62);
-      border:1px solid rgba(255,255,255,.18);
-      border-radius: 18px;
-      box-shadow: 0 20px 40px rgba(0,0,0,.35);
-      padding:16px;
-      display:flex;
-      flex-direction:column;
-      gap:12px;
-      align-items:center;
-      text-align:center;
+    #finalCard{
+      max-width:min(720px, 92vw);
+      background: rgba(0,0,0,.72);
+      border:2px solid rgba(255,255,255,.18);
+      border-radius:20px;
       color:#fff;
+      padding:18px 18px 16px;
+      text-align:center;
+      box-shadow: 0 18px 50px rgba(0,0,0,.45);
+      animation: pop .35s ease-out;
     }
-    #final .text{
-      font-weight:900;
-      font-size: clamp(18px, 3.1vw, 30px);
-      line-height:1.1;
-    }
-    #final img{
-      max-width: min(420px, 70vw);
-      max-height: 60vh;
-      border-radius: 14px;
+    #finalCard img{
       display:block;
+      width:min(320px, 70vw);
+      margin:12px auto 0;
       filter: drop-shadow(0 16px 28px rgba(0,0,0,.35));
     }
-
-    /* анимации */
-    @keyframes draw {
-      from { stroke-dashoffset: var(--len); }
-      to   { stroke-dashoffset: 0; }
-    }
-    @keyframes shake {
-      0%,100%{ transform: translateX(0); }
-      20%{ transform: translateX(-6px); }
-      40%{ transform: translateX(6px); }
-      60%{ transform: translateX(-4px); }
-      80%{ transform: translateX(4px); }
+    @keyframes pop{
+      from{opacity:0; transform: scale(.96)}
+      to{opacity:1; transform: scale(1)}
     }
   </style>
 </head>
-
 <body>
 <div id="root">
+  <svg id="svg" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+    <defs>
+      <pattern id="ropeTex" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(18)">
+        <rect width="10" height="10" fill="#caa15a"></rect>
+        <path d="M0 2 H10" stroke="#b38b45" stroke-width="2" opacity="0.75"></path>
+        <path d="M0 6 H10" stroke="#d8b46a" stroke-width="2" opacity="0.55"></path>
+        <path d="M0 9 H10" stroke="#9a7539" stroke-width="1" opacity="0.35"></path>
+      </pattern>
+      <filter id="ropeShadow" x="-30%" y="-30%" width="160%" height="160%">
+        <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity="0.35"/>
+      </filter>
+    </defs>
+  </svg>
+
   <div id="hud">
-    <button class="btn" id="checkBtn">Проверить</button>
-    <button class="btn" id="resetBtn">Сброс</button>
     <div class="pill" id="scorePill">0 / 0</div>
+    <button class="btn" id="btnCheck">Проверить</button>
+    <button class="btn" id="btnReset">Сброс</button>
   </div>
 
-  <svg id="svg" aria-hidden="true"></svg>
-
-  <div id="final">
-    <div class="box">
-      <div class="text" id="finalText">🎉 Молодец!</div>
-      <img id="finalImg" alt="" style="display:none"/>
+  <div id="finalOverlay">
+    <div id="finalCard">
+      <div id="finalText">🎉 Отлично!</div>
+      <img id="finalImg" alt="" style="display:none;">
     </div>
   </div>
 </div>
 
 <script>
-(async function(){
+(()=>{
   const root = document.getElementById('root');
-  const svg  = document.getElementById('svg');
+  const svg = document.getElementById('svg');
+  const urlParams = new URLSearchParams(location.search);
 
-  const qp = new URLSearchParams(location.search);
-  const cfgId = qp.get('id');
-
+  // как у Utki: читаем JSON по id из texts/data
   const JSON_BASE = "https://nikashum93.github.io/texts/data/";
-  if(!cfgId){ console.warn('Нет id'); return; }
+  const cfgId = urlParams.get('id');
 
-  let cfg;
-  try{
-    const res = await fetch(`${JSON_BASE}${encodeURIComponent(cfgId)}.json?v=${Date.now()}`, {cache:'no-store'});
-    cfg = await res.json();
-  }catch(e){
-    console.warn('JSON load failed', e);
-    return;
-  }
+  let cfg = null;
 
-  const anchors = cfg.anchors || {};
-  const pairs = cfg.pairs || [];
-  const settings = cfg.settings || {};
-  const style = cfg.style || {};
-  const feedback = cfg.feedback || { enabled:true, mode:'both', text:'', image:'' };
+  // runtime state
+  const anchors = new Map(); // id -> {id,side,x,y,el}
+  const correct = new Set(); // "L=>R"
+  const linkMapL = new Map(); // leftId -> rightId
+  const linkMapR = new Map(); // rightId -> leftId
+  const ropeGroups = []; // svg g elements
+  let dragging = null; // {leftId, tempG}
 
-  const connectMode = settings.connectMode || 'drag';       // drag|click
-  const checkMode = settings.checkMode || 'button';         // button|instant
-  const oneToOne = settings.oneToOne !== false;
-  const wrongBehavior = settings.wrongBehavior || 'mark';    // mark|shakeRemove
-  const showButtons = settings.showButtons !== false;
-
-  const ropeWidth = style.ropeWidth || 8;
-  const curve = (typeof style.curve === 'number') ? style.curve : 0.35;
-  const ropeColor = style.ropeColor || '#66ccff';
-  const correctColor = style.correctColor || '#5cff9d';
-  const wrongColor = style.wrongColor || '#ff4d4d';
-  const glow = style.glow !== false;
-  const drawAnim = style.drawAnim !== false;
-
-  // UI
-  const checkBtn = document.getElementById('checkBtn');
-  const resetBtn = document.getElementById('resetBtn');
   const scorePill = document.getElementById('scorePill');
+  const btnCheck = document.getElementById('btnCheck');
+  const btnReset = document.getElementById('btnReset');
 
-  document.getElementById('hud').style.display = showButtons ? 'flex' : 'none';
-  if(checkMode === 'instant'){ checkBtn.style.display = 'none'; }
-
-  // Нормализуем правильные пары в Set (L->R)
-  const correctSet = new Set(pairs.map(p => `${p.from}=>${p.to}`));
-
-  // Состояние игрока: linkMap хранит Lx -> Ry
-  const linkMap = new Map();   // leftId -> rightId
-  const pathMap = new Map();   // key "L=>R" -> {shadow, main, c1, c2}
-
-  // build anchors DOM
-  const anchorEls = {};
-  function stageRect(){ return root.getBoundingClientRect(); }
-  function toPx(a){
-    const r = stageRect();
-    return { x: (a.x||0)*r.width, y: (a.y||0)*r.height };
-  }
-
-  Object.keys(anchors).forEach(id=>{
-    const a = anchors[id];
-    const el = document.createElement('div');
-    el.className = 'anchor ' + (a.side || '');
-    el.dataset.id = id;
-    root.appendChild(el);
-    anchorEls[id] = el;
-  });
-
-  function layoutAnchors(){
-    Object.keys(anchors).forEach(id=>{
-      const a = anchors[id];
-      const el = anchorEls[id];
-      if(!el) return;
-      const p = toPx(a);
-      el.style.left = p.x + 'px';
-      el.style.top  = p.y + 'px';
-    });
-    redrawAll();
-  }
-  window.addEventListener('resize', layoutAnchors);
-  layoutAnchors();
-
-  // SVG helpers
-  function makePath(d, stroke, w, alpha){
-    const p = document.createElementNS('http://www.w3.org/2000/svg','path');
-    p.setAttribute('d', d);
-    p.setAttribute('fill','none');
-    p.setAttribute('stroke', stroke);
-    p.setAttribute('stroke-width', w);
-    p.setAttribute('stroke-linecap','round');
-    p.setAttribute('stroke-linejoin','round');
-    if(typeof alpha === 'number') p.setAttribute('opacity', alpha);
-    if(glow){
-      p.style.filter = 'drop-shadow(0 0 10px rgba(255,255,255,.18))';
-    }
-    return p;
-  }
-  function makeCircle(x,y,r,fill,alpha){
-    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
-    c.setAttribute('cx', x);
-    c.setAttribute('cy', y);
-    c.setAttribute('r', r);
-    c.setAttribute('fill', fill);
-    if(typeof alpha === 'number') c.setAttribute('opacity', alpha);
-    if(glow){
-      c.style.filter = 'drop-shadow(0 0 10px rgba(255,255,255,.18))';
-    }
-    return c;
-  }
-
-  function curvePath(A,B){
-    const dx = Math.max(80, Math.abs(B.x - A.x) * curve);
-    return `M ${A.x} ${A.y} C ${A.x + dx} ${A.y}, ${B.x - dx} ${B.y}, ${B.x} ${B.y}`;
-  }
-
-  function removeLink(leftId){
-    const rightId = linkMap.get(leftId);
-    if(!rightId) return;
-    const key = `${leftId}=>${rightId}`;
-    const pack = pathMap.get(key);
-    if(pack){
-      pack.shadow.remove();
-      pack.main.remove();
-      pack.c1.remove();
-      pack.c2.remove();
-      pathMap.delete(key);
-    }
-    linkMap.delete(leftId);
-  }
-
-  function removeAnyUsing(id){
-    // если oneToOne — выкидываем связи, где участвует id
-    if(!oneToOne) return;
-    // если id — левый: removeLink(id)
-    if(anchors[id]?.side === 'left'){
-      removeLink(id);
-      // а если этот id был справа — удалим у того, кто на него указывает
-      for(const [l,r] of linkMap.entries()){
-        if(r === id){ removeLink(l); }
-      }
-    }else{
-      // id справа
-      for(const [l,r] of linkMap.entries()){
-        if(r === id){ removeLink(l); }
-      }
-    }
-  }
-
-  function link(leftId, rightId, paintColor = ropeColor){
-    if(!anchors[leftId] || !anchors[rightId]) return;
-    if(anchors[leftId].side !== 'left' || anchors[rightId].side !== 'right') return;
-
-    if(oneToOne){
-      removeAnyUsing(leftId);
-      removeAnyUsing(rightId);
-    }
-
-    linkMap.set(leftId, rightId);
-
-    const key = `${leftId}=>${rightId}`;
-    // удалим старый (если был)
-    if(pathMap.has(key)){
-      const old = pathMap.get(key);
-      old.shadow.remove(); old.main.remove(); old.c1.remove(); old.c2.remove();
-      pathMap.delete(key);
-    }
-
-    const A = toPx(anchors[leftId]);
-    const B = toPx(anchors[rightId]);
-    const d = curvePath(A,B);
-
-    // shadow + main
-    const shadow = makePath(d, 'rgba(0,0,0,.35)', ropeWidth+6, 1);
-    const main = makePath(d, paintColor, ropeWidth, 1);
-
-    // end caps
-    const c1 = makeCircle(A.x, A.y, Math.max(4, ropeWidth*0.55), paintColor, 0.95);
-    const c2 = makeCircle(B.x, B.y, Math.max(4, ropeWidth*0.55), paintColor, 0.95);
-
-    svg.appendChild(shadow);
-    svg.appendChild(main);
-    svg.appendChild(c1);
-    svg.appendChild(c2);
-
-    // draw anim
-    if(drawAnim){
-      const len = main.getTotalLength();
-      main.style.strokeDasharray = String(len);
-      main.style.strokeDashoffset = String(len);
-      main.style.setProperty('--len', len);
-      main.style.animation = 'draw .35s ease-out forwards';
-    }
-
-    pathMap.set(key, {shadow, main, c1, c2, leftId, rightId});
-    updateScorePill();
-    if(checkMode === 'instant') instantValidateLast(leftId, rightId);
-  }
-
-  function redrawAll(){
-    // пересоздать svg для всех текущих связей
-    svg.innerHTML = '';
-    const current = Array.from(linkMap.entries());
-    pathMap.clear();
-    for(const [l,r] of current){
-      link(l,r, ropeColor);
-    }
-  }
-
-  function updateScorePill(){
-    scorePill.textContent = `${countCorrect()} / ${pairs.length}`;
-  }
-
-  function countCorrect(){
-    let ok = 0;
-    for(const [l,r] of linkMap.entries()){
-      if(correctSet.has(`${l}=>${r}`)) ok++;
-    }
-    return ok;
-  }
-
-  function allCorrect(){
-    return pairs.length > 0 && countCorrect() === pairs.length && linkMap.size === pairs.length;
-  }
-
-  function paintLink(leftId, rightId, color){
-    const key = `${leftId}=>${rightId}`;
-    const pack = pathMap.get(key);
-    if(!pack) return;
-    pack.main.setAttribute('stroke', color);
-    pack.c1.setAttribute('fill', color);
-    pack.c2.setAttribute('fill', color);
-  }
-
-  function wrongEffect(leftId, rightId){
-    const key = `${leftId}=>${rightId}`;
-    const pack = pathMap.get(key);
-    if(!pack) return;
-
-    if(wrongBehavior === 'shakeRemove'){
-      pack.main.style.animation = 'shake .35s ease';
-      pack.shadow.style.animation = 'shake .35s ease';
-      setTimeout(()=>{ removeLink(leftId); updateScorePill(); }, 280);
-    }else{
-      paintLink(leftId, rightId, wrongColor);
-    }
-  }
-
-  function instantValidateLast(leftId, rightId){
-    const good = correctSet.has(`${leftId}=>${rightId}`);
-    if(good){
-      paintLink(leftId, rightId, correctColor);
-      if(allCorrect()) showFinal();
-    }else{
-      wrongEffect(leftId, rightId);
-    }
-  }
-
-  function checkAll(){
-    // подсветка всех связей
-    for(const [l,r] of linkMap.entries()){
-      const good = correctSet.has(`${l}=>${r}`);
-      paintLink(l,r, good ? correctColor : wrongColor);
-      if(!good && wrongBehavior === 'shakeRemove'){
-        wrongEffect(l,r);
-      }
-    }
-    setTimeout(()=>{
-      updateScorePill();
-      if(allCorrect()) showFinal();
-    }, 320);
-  }
-
-  function resetAll(){
-    linkMap.clear();
-    pathMap.forEach(p=>{ p.shadow.remove(); p.main.remove(); p.c1.remove(); p.c2.remove(); });
-    pathMap.clear();
-    svg.innerHTML = '';
-    activeStart = null;
-    Object.values(anchorEls).forEach(el=>el.classList.remove('active'));
-    updateScorePill();
-    hideFinal();
-  }
-
-  checkBtn.addEventListener('click', checkAll);
-  resetBtn.addEventListener('click', resetAll);
-
-  // ---------- connect interaction ----------
-  let activeStart = null;     // id точки старта
-  let dragging = false;
-  let tempPath = null;
-
-  function anchorAtPoint(clientX, clientY){
-    // найдём anchor под курсором
-    const el = document.elementFromPoint(clientX, clientY);
-    if(!el) return null;
-    if(el.classList && el.classList.contains('anchor')) return el.dataset.id;
-    return null;
-  }
-
-  function startFrom(id){
-    activeStart = id;
-    Object.values(anchorEls).forEach(el=>el.classList.remove('active'));
-    anchorEls[id]?.classList.add('active');
-  }
-
-  function finishTo(id){
-    const a = anchors[activeStart];
-    const b = anchors[id];
-    if(!a || !b) return;
-
-    // нормализуем: только left -> right
-    let leftId = null, rightId = null;
-    if(a.side === 'left' && b.side === 'right'){ leftId = activeStart; rightId = id; }
-    if(a.side === 'right' && b.side === 'left'){ leftId = id; rightId = activeStart; }
-
-    if(!leftId || !rightId){
-      // одинаковая сторона — игнор
-      return;
-    }
-
-    link(leftId, rightId, ropeColor);
-
-    anchorEls[activeStart]?.classList.remove('active');
-    activeStart = null;
-  }
-
-  function tempLine(fromId, clientX, clientY){
-    // временная линия во время drag
-    const r = stageRect();
-    const A = toPx(anchors[fromId]);
-    const B = { x: clientX - r.left, y: clientY - r.top };
-    const d = curvePath(A,B);
-
-    if(!tempPath){
-      tempPath = makePath(d, ropeColor, ropeWidth, 0.75);
-      svg.appendChild(tempPath);
-    }else{
-      tempPath.setAttribute('d', d);
-    }
-  }
-
-  function clearTemp(){
-    if(tempPath){ tempPath.remove(); tempPath = null; }
-  }
-
-  Object.values(anchorEls).forEach(el=>{
-    const id = el.dataset.id;
-
-    if(connectMode === 'click'){
-      el.addEventListener('click', (e)=>{
-        e.stopPropagation();
-        if(!activeStart){ startFrom(id); return; }
-        if(activeStart === id){
-          anchorEls[id]?.classList.remove('active');
-          activeStart = null;
-          return;
-        }
-        finishTo(id);
-      });
-    }else{
-      // drag
-      el.addEventListener('pointerdown', (e)=>{
-        e.stopPropagation();
-        dragging = true;
-        el.setPointerCapture(e.pointerId);
-        startFrom(id);
-        tempLine(id, e.clientX, e.clientY);
-      });
-    }
-  });
-
-  window.addEventListener('pointermove', (e)=>{
-    if(!dragging || !activeStart) return;
-    tempLine(activeStart, e.clientX, e.clientY);
-  });
-
-  window.addEventListener('pointerup', (e)=>{
-    if(!dragging) return;
-    dragging = false;
-    clearTemp();
-
-    const targetId = anchorAtPoint(e.clientX, e.clientY);
-    if(targetId && activeStart && targetId !== activeStart){
-      finishTo(targetId);
-    }else{
-      // не попали — просто сброс
-      anchorEls[activeStart]?.classList.remove('active');
-      activeStart = null;
-    }
-  });
-
-  // ---------- final feedback ----------
-  const final = document.getElementById('final');
+  const finalOverlay = document.getElementById('finalOverlay');
   const finalTextEl = document.getElementById('finalText');
   const finalImgEl = document.getElementById('finalImg');
 
-  function showFinal(){
-    if(!feedback.enabled) return;
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+  function rect(){ return root.getBoundingClientRect(); }
 
-    const mode = feedback.mode || 'both';
-    finalTextEl.textContent = feedback.text || '🎉 Молодец!';
-    finalImgEl.style.display = 'none';
-    finalTextEl.style.display = 'block';
+  function ropeD(x1,y1,x2,y2,sag){
+    const mx = (x1+x2)/2;
+    const my = (y1+y2)/2 + sag;
+    return `M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`;
+  }
 
-    if(mode === 'image'){
-      finalTextEl.style.display = 'none';
+  function drawRope(x1,y1,x2,y2, good=null){
+    const w = cfg?.style?.ropeWidth ?? 18;
+    const sag = cfg?.style?.ropeSag ?? 70;
+
+    const d = ropeD(x1,y1,x2,y2,sag);
+
+    const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+
+    const sh = document.createElementNS("http://www.w3.org/2000/svg","path");
+    sh.setAttribute("d", d);
+    sh.setAttribute("fill","none");
+    sh.setAttribute("stroke","#000");
+    sh.setAttribute("stroke-width", w + 6);
+    sh.setAttribute("stroke-linecap","round");
+    sh.setAttribute("opacity","0.16");
+    sh.setAttribute("filter","url(#ropeShadow)");
+
+    const body = document.createElementNS("http://www.w3.org/2000/svg","path");
+    body.setAttribute("d", d);
+    body.setAttribute("fill","none");
+    body.setAttribute("stroke","url(#ropeTex)");
+    body.setAttribute("stroke-width", w);
+    body.setAttribute("stroke-linecap","round");
+    body.setAttribute("stroke-linejoin","round");
+
+    const hl = document.createElementNS("http://www.w3.org/2000/svg","path");
+    hl.setAttribute("d", d);
+    hl.setAttribute("fill","none");
+    hl.setAttribute("stroke","#fff");
+    hl.setAttribute("stroke-width", Math.max(2, w*0.22));
+    hl.setAttribute("stroke-linecap","round");
+    hl.setAttribute("opacity","0.28");
+
+    g.appendChild(sh);
+    g.appendChild(body);
+    g.appendChild(hl);
+
+    if (good === true || good === false){
+      const ov = document.createElementNS("http://www.w3.org/2000/svg","path");
+      ov.setAttribute("d", d);
+      ov.setAttribute("fill","none");
+      ov.setAttribute("stroke", good ? "#00e676" : "#ff5252");
+      ov.setAttribute("stroke-width", Math.max(3, w*0.35));
+      ov.setAttribute("stroke-linecap","round");
+      ov.setAttribute("opacity","0.75");
+      g.appendChild(ov);
     }
-    if(mode === 'text'){
+
+    // animation draw
+    const len = body.getTotalLength();
+    [sh, body, hl].forEach(p=>{
+      p.style.strokeDasharray = len;
+      p.style.strokeDashoffset = len;
+      p.style.transition = "stroke-dashoffset 380ms ease-out";
+    });
+    requestAnimationFrame(()=>{
+      [sh, body, hl].forEach(p=>p.style.strokeDashoffset = "0");
+    });
+
+    svg.appendChild(g);
+    ropeGroups.push(g);
+    return g;
+  }
+
+  function clearRopes(){
+    while(ropeGroups.length){
+      const g = ropeGroups.pop();
+      try{ g.remove(); }catch(_){}
+    }
+  }
+
+  function placeAnchor(a){
+    const el = document.createElement('div');
+    el.className = 'anchor ' + a.side;
+    el.textContent = a.side === 'left' ? 'L' : 'R';
+
+    anchors.set(a.id, {...a, el});
+
+    root.appendChild(el);
+
+    el.addEventListener('pointerdown', (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      if(a.side !== 'left') return;
+
+      // start drag connection from left
+      dragging = { leftId: a.id, tempG: null };
+      el.setPointerCapture(e.pointerId);
+      updateTempRope(e.clientX, e.clientY);
+
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      function onMove(ev){
+        updateTempRope(ev.clientX, ev.clientY);
+      }
+      function onUp(ev){
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        try{ el.releasePointerCapture(e.pointerId); }catch(_){}
+        finishDrop(ev.clientX, ev.clientY);
+      }
+    });
+  }
+
+  function updateAnchorPositions(){
+    const r = rect();
+    for(const a of anchors.values()){
+      a.el.style.left = (a.x * r.width) + 'px';
+      a.el.style.top  = (a.y * r.height) + 'px';
+    }
+  }
+
+  function toSvgXY(clientX, clientY){
+    const r = rect();
+    const nx = clamp((clientX - r.left)/r.width, 0, 1);
+    const ny = clamp((clientY - r.top)/r.height, 0, 1);
+    return { x: nx*1920, y: ny*1080 };
+  }
+
+  function getAnchorCenterSvg(id){
+    const a = anchors.get(id);
+    return { x: a.x*1920, y: a.y*1080 };
+  }
+
+  function updateTempRope(clientX, clientY){
+    if(!dragging) return;
+    const L = getAnchorCenterSvg(dragging.leftId);
+    const P = toSvgXY(clientX, clientY);
+
+    // redraw temp
+    if(dragging.tempG) dragging.tempG.remove();
+    dragging.tempG = drawRope(L.x, L.y, P.x, P.y, null);
+    // make temp a bit transparent
+    dragging.tempG.style.opacity = '0.65';
+  }
+
+  function findHitRight(clientX, clientY){
+    const r = rect();
+    const x = clientX - r.left;
+    const y = clientY - r.top;
+
+    for(const a of anchors.values()){
+      if(a.side !== 'right') continue;
+      const ax = a.x * r.width;
+      const ay = a.y * r.height;
+      const dx = ax - x, dy = ay - y;
+      if(Math.hypot(dx,dy) < 26) return a.id;
+    }
+    return null;
+  }
+
+  function setLink(leftId, rightId){
+    // overwrite if already linked
+    const prevR = linkMapL.get(leftId);
+    if(prevR){
+      linkMapL.delete(leftId);
+      linkMapR.delete(prevR);
+    }
+    const prevL = linkMapR.get(rightId);
+    if(prevL){
+      linkMapR.delete(rightId);
+      linkMapL.delete(prevL);
+    }
+    linkMapL.set(leftId, rightId);
+    linkMapR.set(rightId, leftId);
+
+    redrawLinks();
+
+    if(cfg.autoCheck && linkMapL.size === cfg.pairs.length){
+      checkAll();
+    } else {
+      updateScore();
+    }
+  }
+
+  function redrawLinks(goodMap=null){
+    clearRopes();
+    for(const [l,r] of linkMapL.entries()){
+      const L = getAnchorCenterSvg(l);
+      const R = getAnchorCenterSvg(r);
+      const good = goodMap ? goodMap.get(`${l}=>${r}`) : null;
+      drawRope(L.x, L.y, R.x, R.y, good);
+    }
+  }
+
+  function finishDrop(clientX, clientY){
+    if(!dragging) return;
+
+    const hit = findHitRight(clientX, clientY);
+
+    // remove temp
+    try{ dragging.tempG?.remove(); }catch(_){}
+    dragging = null;
+
+    if(!hit) { updateScore(); return; }
+    setLink(dragging?.leftId, hit);
+  }
+
+  function updateScore(){
+    scorePill.textContent = `${linkMapL.size} / ${cfg.pairs.length}`;
+  }
+
+  function flash(text, bad=false){
+    scorePill.textContent = text;
+    scorePill.style.background = bad ? 'rgba(255,82,82,.30)' : 'rgba(0,230,118,.20)';
+    setTimeout(()=>{
+      scorePill.style.background = '';
+      updateScore();
+    }, 1100);
+  }
+
+  function checkAll(){
+    const goodMap = new Map();
+    let ok = 0;
+    for(const [l,r] of linkMapL.entries()){
+      const key = `${l}=>${r}`;
+      const good = correct.has(key);
+      goodMap.set(key, good);
+      if(good) ok++;
+    }
+    redrawLinks(goodMap);
+
+    if(ok === cfg.pairs.length){
+      showFinal();
+    } else {
+      flash(`Неверно: ${ok} из ${cfg.pairs.length}. Попробуй ещё раз`, true);
+    }
+  }
+
+  function resetAll(){
+    linkMapL.clear();
+    linkMapR.clear();
+    redrawLinks();
+    updateScore();
+  }
+
+  function showFinal(){
+    finalTextEl.textContent = cfg.feedback?.finalText || '🎉 Отлично!';
+    const img = (cfg.feedback?.finalImage || '').trim();
+    if(img){
+      finalImgEl.src = img;
+      finalImgEl.style.display = 'block';
+    } else {
       finalImgEl.style.display = 'none';
     }
-    if((mode === 'both' || mode === 'image') && feedback.image){
-      finalImgEl.src = feedback.image;
-      finalImgEl.style.display = 'block';
+    finalOverlay.style.display = 'flex';
+    finalOverlay.addEventListener('click', ()=>finalOverlay.style.display='none', {once:true});
+  }
+
+  btnCheck.addEventListener('click', checkAll);
+  btnReset.addEventListener('click', resetAll);
+
+  async function init(){
+    if(!cfgId){
+      scorePill.textContent = 'Нет id';
+      return;
     }
 
-    final.style.display = 'flex';
+    try{
+      const res = await fetch(`${JSON_BASE}${encodeURIComponent(cfgId)}.json?v=${Date.now()}`, { cache:'no-store' });
+      cfg = await res.json();
+
+      // build correct set
+      (cfg.pairs||[]).forEach(p=>correct.add(`${p.leftId}=>${p.rightId}`));
+
+      // anchors
+      (cfg.anchors||[]).forEach(a=>placeAnchor(a));
+
+      updateAnchorPositions();
+      updateScore();
+
+      window.addEventListener('resize', ()=>{
+        updateAnchorPositions();
+        redrawLinks();
+      });
+
+    }catch(e){
+      scorePill.textContent = 'JSON не загрузился';
+      console.warn(e);
+    }
   }
 
-  function hideFinal(){
-    final.style.display = 'none';
-  }
-
-  // стартовый счёт
-  updateScorePill();
-
+  init();
 })();
 </script>
 </body>
